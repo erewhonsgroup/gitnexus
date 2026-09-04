@@ -98,8 +98,11 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    // Windows `path.resolve` uses `\`, so a POSIX-only `/assets/` check
+    // would miss hashed Vite files and skip the immutable cache header.
+    const isHashedAsset = /[/\\]assets[/\\]/.test(finalPath);
     res.writeHead(200, {
-      'Cache-Control': finalPath.includes('/assets/')
+      'Cache-Control': isHashedAsset
         ? 'public, max-age=31536000, immutable'
         : 'no-cache',
       'Content-Type': contentTypes[extname(finalPath)] || 'application/octet-stream',
