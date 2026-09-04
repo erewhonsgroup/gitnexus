@@ -10,12 +10,15 @@ const root = resolve(process.cwd(), 'dist');
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
+  '.ico': 'image/x-icon',
   '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.map': 'application/json; charset=utf-8',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
   '.txt': 'text/plain; charset=utf-8',
+  '.wasm': 'application/wasm',
+  '.webp': 'image/webp',
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
 };
@@ -98,8 +101,11 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    // Windows `path.resolve` uses `\`, so a POSIX-only `/assets/` check
+    // would miss hashed Vite files and skip the immutable cache header.
+    const isHashedAsset = /[/\\]assets[/\\]/.test(finalPath);
     res.writeHead(200, {
-      'Cache-Control': finalPath.includes('/assets/')
+      'Cache-Control': isHashedAsset
         ? 'public, max-age=31536000, immutable'
         : 'no-cache',
       'Content-Type': contentTypes[extname(finalPath)] || 'application/octet-stream',
