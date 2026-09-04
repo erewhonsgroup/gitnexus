@@ -37,6 +37,29 @@ describe('JobManager', () => {
     );
   });
 
+  it('releases a held repo lock when createJobHoldingLock is rejected', () => {
+    const job1 = manager.createJob({ repoPath: '/repos/a' });
+    manager.updateJob(job1.id, { status: 'analyzing' });
+
+    const held = new Set<string>(['/repos/b']);
+    expect(() =>
+      manager.createJobHoldingLock({ repoPath: '/repos/b' }, () => {
+        held.delete('/repos/b');
+      }),
+    ).toThrow(/already in progress/);
+
+    expect(held.has('/repos/b')).toBe(false);
+  });
+
+  it('does not invoke release when createJobHoldingLock succeeds', () => {
+    let released = false;
+    const job = manager.createJobHoldingLock({ repoPath: '/repos/a' }, () => {
+      released = true;
+    });
+    expect(job.status).toBe('queued');
+    expect(released).toBe(false);
+  });
+
   it('allows new job after previous completes', () => {
     const job1 = manager.createJob({ repoUrl: 'https://github.com/user/repo1' });
     manager.updateJob(job1.id, { status: 'analyzing' });
