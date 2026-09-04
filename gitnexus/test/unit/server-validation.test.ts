@@ -77,6 +77,10 @@ describe('assertSafePath', () => {
     expect(() => assertSafePath('/etc/passwd', root)).toThrow(ForbiddenError);
   });
 
+  it('rejects a Windows drive-letter path that would discard the root', () => {
+    expect(() => assertSafePath('C:\\Windows\\System32', root)).toThrow(ForbiddenError);
+  });
+
   it('rejects an empty path', () => {
     expect(() => assertSafePath('', root)).toThrow(BadRequestError);
   });
