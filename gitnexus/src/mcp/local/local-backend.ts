@@ -16,6 +16,7 @@ import {
   isLbugReady,
   isWriteQuery,
 } from '../../core/lbug/pool-adapter.js';
+import { clampInt, clampNumber } from './clamp.js';
 export { isWriteQuery };
 // Embedding imports are lazy (dynamic import) to avoid loading onnxruntime-node
 // at MCP server startup — crashes on unsupported Node ABI versions (#89)
@@ -2452,7 +2453,11 @@ export class LocalBackend {
     await this.ensureInitialized(repo.id);
 
     const { target, direction } = params;
-    const maxDepth = params.maxDepth || 3;
+    // Clamp to the range advertised in the tool schema (1-32). The MCP SDK does not
+    // enforce inputSchema `minimum`/`maximum`, so an out-of-range value would otherwise
+    // reach the BFS bound directly: 0 silently becomes 3, -1 never runs, 5000 issues
+    // 5000 sequential per-depth Cypher round-trips.
+    const maxDepth = clampInt(params.maxDepth, 1, 32, 3);
     // Map legacy relation type names before filtering (backward compat for OVERRIDES → METHOD_OVERRIDES)
     const mappedRelTypes = params.relationTypes?.flatMap((t: string) =>
       t === 'OVERRIDES' ? ['OVERRIDES', 'METHOD_OVERRIDES'] : [t],
@@ -2482,7 +2487,7 @@ export class LocalBackend {
             'METHOD_IMPLEMENTS',
           ];
     const includeTests = params.includeTests ?? false;
-    const minConfidence = params.minConfidence ?? 0;
+    const minConfidence = clampNumber(params.minConfidence, 0, 1, 0);
 
     // Resolve target via the shared symbol resolver. When the caller passes
     // target_uid we skip the name lookup entirely (zero-ambiguity). Otherwise
