@@ -71,8 +71,27 @@ before(async () => {
 });
 
 after(async () => {
-  child?.kill();
-  if (tmpDir) await rm(tmpDir, { recursive: true, force: true });
+  if (child && !child.killed) {
+    await new Promise((resolve) => {
+      child.once('exit', resolve);
+      child.kill();
+      setTimeout(resolve, 2000);
+    });
+  }
+  if (tmpDir) {
+    for (let i = 0; i < 8; i++) {
+      try {
+        await rm(tmpDir, { recursive: true, force: true });
+        break;
+      } catch (err) {
+        if (err && err.code === 'EBUSY' && i < 7) {
+          await new Promise((r) => setTimeout(r, 150));
+          continue;
+        }
+        throw err;
+      }
+    }
+  }
 });
 
 it('serves a valid asset with immutable cache header', async () => {
