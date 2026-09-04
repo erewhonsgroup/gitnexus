@@ -123,4 +123,34 @@ describe('mergeWithRRF', () => {
     expect(result[0].bm25Score).toBe(15);
     expect(result[0].semanticScore).toBeCloseTo(0.7); // 1 - distance
   });
+
+  it('counts a file at most once per ranking list (semantic returns one row per symbol)', () => {
+    // Semantic search is keyed by node, so one file yields many rows.
+    const semantic: SemanticSearchResult[] = [
+      makeSemantic('src/one-strong-hit.ts', 0.1),
+      { ...makeSemantic('src/many-weak-hits.ts', 0.5), nodeId: 'node:weak-1' },
+      { ...makeSemantic('src/many-weak-hits.ts', 0.6), nodeId: 'node:weak-2' },
+      { ...makeSemantic('src/many-weak-hits.ts', 0.7), nodeId: 'node:weak-3' },
+    ];
+
+    const result = mergeWithRRF([], semantic);
+    expect(result).toHaveLength(2);
+    // The single best hit must outrank the file with three mediocre hits.
+    expect(result[0].filePath).toBe('src/one-strong-hit.ts');
+    // Only the best-ranked symbol of a file is reported.
+    expect(result[1].nodeId).toBe('node:weak-1');
+    expect(result[1].semanticScore).toBeCloseTo(0.5);
+  });
+
+  it('does not duplicate the semantic source on shared results', () => {
+    const bm25: BM25SearchResult[] = [makeBM25('src/a.ts', 10)];
+    const semantic: SemanticSearchResult[] = [
+      { ...makeSemantic('src/a.ts', 0.1), nodeId: 'node:best' },
+      { ...makeSemantic('src/a.ts', 0.9), nodeId: 'node:worst' },
+    ];
+
+    const result = mergeWithRRF(bm25, semantic);
+    expect(result[0].sources).toEqual(['bm25', 'semantic']);
+    expect(result[0].nodeId).toBe('node:best');
+  });
 });
