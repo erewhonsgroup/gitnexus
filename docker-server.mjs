@@ -39,6 +39,12 @@ const contentTypes = {
 // the request handler's reassignment paths in vanilla JS. The inline-at-sink
 // shape below is the documented analyzer-friendly idiom.
 const server = createServer(async (req, res) => {
+  if (req.method && req.method !== 'GET' && req.method !== 'HEAD') {
+    res.writeHead(405, { Allow: 'GET, HEAD' });
+    res.end('Method not allowed');
+    return;
+  }
+
   const urlPath = req.url?.split('?')[0] || '/';
 
   let decoded;
@@ -109,6 +115,10 @@ const server = createServer(async (req, res) => {
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'require-corp',
     });
+    if (req.method === 'HEAD') {
+      res.end();
+      return;
+    }
     const stream = createReadStream(finalPath);
     stream.on('error', () => res.destroy());
     stream.pipe(res);

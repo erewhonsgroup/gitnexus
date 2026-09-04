@@ -20,9 +20,9 @@ function getFreePort() {
   });
 }
 
-function rawGet(port, path) {
+function rawGet(port, path, method = 'GET') {
   return new Promise((resolve, reject) => {
-    const req = http.request({ host: '127.0.0.1', port, path }, (res) => {
+    const req = http.request({ host: '127.0.0.1', port, path, method }, (res) => {
       let body = '';
       res.setEncoding('utf8');
       res.on('data', (chunk) => {
@@ -107,6 +107,19 @@ it('rejects percent-encoded path traversal with 400', async () => {
   // does its job after decodeURIComponent.
   const res = await rawGet(serverPort, '/%2e%2e%2f%2e%2e%2fetc%2fpasswd');
   assert.equal(res.status, 400);
+});
+
+it('rejects POST with 405', async () => {
+  const res = await rawGet(serverPort, '/', 'POST');
+  assert.equal(res.status, 405);
+  assert.match(res.headers.allow, /GET/);
+});
+
+it('answers HEAD without a body', async () => {
+  const res = await rawGet(serverPort, '/assets/app.abc123.js', 'HEAD');
+  assert.equal(res.status, 200);
+  assert.equal(res.body, '');
+  assert.match(res.headers['cache-control'], /immutable/);
 });
 
 it('rejects malformed percent-encoding with 400', async () => {
