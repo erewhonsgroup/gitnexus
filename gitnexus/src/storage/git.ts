@@ -68,7 +68,10 @@ export const getRemoteUrl = (repoPath: string): string | undefined => {
   }
   if (!raw) return undefined;
 
-  let normalised = raw.replace(/\/$/, '').replace(/\.git$/, '');
+  // Strip `.git` and a trailing slash in either order so
+  // `https://x/y.git/` and `https://x/y.git` collapse. A single
+  // `.replace(/\/$/, '').replace(/\.git$/, '')` misses the `.git/` form.
+  let normalised = raw.replace(/\/$/, '').replace(/\.git$/, '').replace(/\/$/, '');
 
   // Lower-case the host segment of `scheme://[user@]host[:port]/...`
   // and the host segment of `git@host:owner/repo` SCP form.

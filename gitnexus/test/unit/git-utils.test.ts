@@ -214,6 +214,16 @@ describe('getRemoteUrl', () => {
       fs.rmSync(b, { recursive: true, force: true });
     }
   });
+
+  it('strips a trailing slash after .git so y.git/ matches y.git', async () => {
+    const { getRemoteUrl } = await import('../../src/storage/git.js');
+    const tmpDir = setupRepoWithRemote('https://example.com/foo/bar.git/');
+    try {
+      expect(getRemoteUrl(tmpDir)).toBe('https://example.com/foo/bar');
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 });
 
 // ─── getCanonicalRepoRoot (#1259) ────────────────────────────────────────
