@@ -12,6 +12,7 @@ import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import {
   assertString,
+  jobIdFromParams,
   assertSafePath,
   escapeRegExp,
   BadRequestError,
@@ -49,6 +50,20 @@ describe('assertString', () => {
 
   it('rejects an object', () => {
     expect(() => assertString({ key: 'value' }, 'name')).toThrow(BadRequestError);
+  });
+});
+
+describe('jobIdFromParams', () => {
+  it('returns a string jobId from Express params', () => {
+    expect(jobIdFromParams({ jobId: 'abc-123' })).toBe('abc-123');
+  });
+
+  it('rejects array-form jobId (Express 5 duplicate-param shape)', () => {
+    expect(() => jobIdFromParams({ jobId: ['a', 'b'] })).toThrow(BadRequestError);
+  });
+
+  it('rejects a missing jobId', () => {
+    expect(() => jobIdFromParams({})).toThrow(BadRequestError);
   });
 });
 

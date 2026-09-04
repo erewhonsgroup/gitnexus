@@ -65,6 +65,15 @@ export function assertString(value: unknown, fieldName: string): string {
 }
 
 /**
+ * Express 5 types `req.params[name]` as `string | string[]`. Job routes always
+ * declare a single `:jobId` segment, so reject array-form values and return a
+ * string `getJob` / `cancelJob` can accept.
+ */
+export function jobIdFromParams(params: { jobId?: string | string[] }): string {
+  return assertString(params.jobId, 'jobId');
+}
+
+/**
  * Resolve a user-supplied relative path against an allowed root and verify it
  * stays inside that root. Mirrors the existing guard at api.ts:1067-1077.
  *

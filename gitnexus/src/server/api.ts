@@ -34,7 +34,13 @@ import { mountMCPEndpoints } from './mcp-http.js';
 import { fork } from 'child_process';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { JobManager } from './analyze-job.js';
-import { assertString, escapeRegExp, BadRequestError, createRouteLimiter } from './validation.js';
+import {
+  assertString,
+  jobIdFromParams,
+  escapeRegExp,
+  BadRequestError,
+  createRouteLimiter,
+} from './validation.js';
 import { extractRepoName, getCloneDir, cloneOrPull } from './git-clone.js';
 
 const _require = createRequire(import.meta.url);
@@ -448,7 +454,7 @@ export const streamGraphNdjson = async (
  */
 const mountSSEProgress = (app: express.Express, routePath: string, jm: JobManager) => {
   app.get(routePath, (req, res) => {
-    const job = jm.getJob(req.params.jobId);
+    const job = jm.getJob(jobIdFromParams(req.params));
     if (!job) {
       res.status(404).json({ error: 'Job not found' });
       return;
@@ -494,7 +500,7 @@ const mountSSEProgress = (app: express.Express, routePath: string, jm: JobManage
       try {
         eventId++;
         if (progress.phase === 'complete' || progress.phase === 'failed') {
-          const eventJob = jm.getJob(req.params.jobId);
+          const eventJob = jm.getJob(jobIdFromParams(req.params));
           res.write(
             `id: ${eventId}\nevent: ${progress.phase}\ndata: ${JSON.stringify({
               repoName: eventJob?.repoName,
@@ -1583,7 +1589,7 @@ export const createServer = async (port: number, host: string = '127.0.0.1') => 
 
   // GET /api/analyze/:jobId — poll job status
   app.get('/api/analyze/:jobId', (req, res) => {
-    const job = jobManager.getJob(req.params.jobId);
+    const job = jobManager.getJob(jobIdFromParams(req.params));
     if (!job) {
       res.status(404).json({ error: 'Job not found' });
       return;
@@ -1606,7 +1612,7 @@ export const createServer = async (port: number, host: string = '127.0.0.1') => 
 
   // DELETE /api/analyze/:jobId — cancel a running analysis job
   app.delete('/api/analyze/:jobId', (req, res) => {
-    const job = jobManager.getJob(req.params.jobId);
+    const job = jobManager.getJob(jobIdFromParams(req.params));
     if (!job) {
       res.status(404).json({ error: 'Job not found' });
       return;
@@ -1615,7 +1621,7 @@ export const createServer = async (port: number, host: string = '127.0.0.1') => 
       res.status(400).json({ error: `Job already ${job.status}` });
       return;
     }
-    jobManager.cancelJob(req.params.jobId, 'Cancelled by user');
+    jobManager.cancelJob(jobIdFromParams(req.params), 'Cancelled by user');
     res.json({ id: job.id, status: 'failed', error: 'Cancelled by user' });
   });
 
@@ -1743,7 +1749,7 @@ export const createServer = async (port: number, host: string = '127.0.0.1') => 
 
   // GET /api/embed/:jobId — poll embedding job status
   app.get('/api/embed/:jobId', (req, res) => {
-    const job = embedJobManager.getJob(req.params.jobId);
+    const job = embedJobManager.getJob(jobIdFromParams(req.params));
     if (!job) {
       res.status(404).json({ error: 'Job not found' });
       return;
@@ -1764,7 +1770,7 @@ export const createServer = async (port: number, host: string = '127.0.0.1') => 
 
   // DELETE /api/embed/:jobId — cancel embedding job
   app.delete('/api/embed/:jobId', (req, res) => {
-    const job = embedJobManager.getJob(req.params.jobId);
+    const job = embedJobManager.getJob(jobIdFromParams(req.params));
     if (!job) {
       res.status(404).json({ error: 'Job not found' });
       return;
@@ -1773,7 +1779,7 @@ export const createServer = async (port: number, host: string = '127.0.0.1') => 
       res.status(400).json({ error: `Job already ${job.status}` });
       return;
     }
-    embedJobManager.cancelJob(req.params.jobId, 'Cancelled by user');
+    embedJobManager.cancelJob(jobIdFromParams(req.params), 'Cancelled by user');
     res.json({ id: job.id, status: 'failed', error: 'Cancelled by user' });
   });
 
