@@ -91,6 +91,30 @@ INTENTIONAL_PINS: dict[str, str] = {
         "dep on the broken-ABI tree-sitter-c@^0.23.1; pinning here removes "
         "the need for a transitive override"
     ),
+    # Dependabot #7 proposed 0.24/0.25 grammar bumps. Those require
+    # tree-sitter runtime 0.25 (peerOptional ^0.25.0) and fail
+    # `npm install` / `tsc` against the pinned 0.21.1 runtime. Hold
+    # them here until the daily readiness workflow reports every
+    # grammar is 0.25-compatible.
+    "tree-sitter-c-sharp": (
+        "Dependabot #7 / tree-sitter-c-sharp@0.23.5 peerOptional tree-sitter@^0.25.0; "
+        "runtime is still 0.21.1"
+    ),
+    "tree-sitter-go": (
+        "Dependabot #7 / tree-sitter-go@0.25.0 requires tree-sitter@0.25 runtime"
+    ),
+    "tree-sitter-javascript": (
+        "Dependabot #7 / tree-sitter-javascript@0.25.0 requires tree-sitter@0.25 runtime"
+    ),
+    "tree-sitter-php": (
+        "Dependabot #7 / tree-sitter-php@0.24.2 requires tree-sitter@0.25 runtime"
+    ),
+    "tree-sitter-python": (
+        "Dependabot #7 / tree-sitter-python@0.25.0 requires tree-sitter@0.25 runtime"
+    ),
+    "tree-sitter-rust": (
+        "Dependabot #7 / tree-sitter-rust@0.24.0 requires tree-sitter@0.25 runtime"
+    ),
 }
 
 
