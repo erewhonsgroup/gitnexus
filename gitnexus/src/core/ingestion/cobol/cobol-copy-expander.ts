@@ -93,6 +93,14 @@ function isContinuationLine(line: string): boolean {
 function mergeLogicalLines(rawLines: string[]): Array<{ text: string; lineNum: number }> {
   const logical: Array<{ text: string; lineNum: number }> = [];
 
+  // Index of the last line that actually carries text. Comment and continuation
+  // lines push an empty placeholder to keep `logical` index-aligned with the raw
+  // line numbers, so `logical[logical.length - 1]` is a placeholder, not the
+  // statement being continued — a second continuation line, or a comment sitting
+  // between a line and its continuation, appended into the placeholder and the
+  // text was silently discarded.
+  let lastRealIdx = -1;
+
   for (let i = 0; i < rawLines.length; i++) {
     const raw = rawLines[i];
 
@@ -102,10 +110,10 @@ function mergeLogicalLines(rawLines: string[]): Array<{ text: string; lineNum: n
       continue;
     }
 
-    // Continuation: merge into previous logical line
+    // Continuation: merge into the last line that carries text
     if (isContinuationLine(raw)) {
-      if (logical.length > 0) {
-        const prev = logical[logical.length - 1];
+      if (lastRealIdx >= 0) {
+        const prev = logical[lastRealIdx];
         const continuation = raw.length > 7 ? raw.substring(7).trimStart() : '';
         prev.text += continuation;
       }
@@ -117,6 +125,7 @@ function mergeLogicalLines(rawLines: string[]): Array<{ text: string; lineNum: n
     // Normal line: strip inline comments
     const cleaned = stripInlineComment(raw);
     logical.push({ text: cleaned, lineNum: i + 1 });
+    lastRealIdx = logical.length - 1;
   }
 
   return logical;
