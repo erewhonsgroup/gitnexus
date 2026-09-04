@@ -44,6 +44,24 @@ export function extractRepoName(url: string): string {
   return stripped;
 }
 
+/**
+ * Canonical, lower-cased repo name for a clone URL, or `null` when the URL is
+ * not parseable (an unparseable URL is simply a non-match for callers).
+ *
+ * Callers matching a user-supplied name against a job's `repoUrl` must use this
+ * rather than rolling their own strip: `path.basename(url).replace('.git', '')`
+ * removes the *first* occurrence anywhere in the string — `String.prototype.replace`
+ * with a string pattern is not anchored — so `.../user/blog.github.io` collapsed
+ * to `bloghub.io` and never matched the name the job was stored under.
+ */
+export function repoNameFromUrl(url: string): string | null {
+  try {
+    return extractRepoName(url).toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
 /** Get the clone target directory for a repo name. */
 export function getCloneDir(repoName: string): string {
   // Re-validate at the boundary even though extractRepoName already checked —

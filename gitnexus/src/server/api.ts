@@ -35,7 +35,7 @@ import { fork } from 'child_process';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { JobManager } from './analyze-job.js';
 import { assertString, escapeRegExp, BadRequestError, createRouteLimiter } from './validation.js';
-import { extractRepoName, getCloneDir, cloneOrPull } from './git-clone.js';
+import { extractRepoName, repoNameFromUrl, getCloneDir, cloneOrPull } from './git-clone.js';
 
 const _require = createRequire(import.meta.url);
 const pkg = _require('../../package.json');
@@ -740,7 +740,7 @@ export const createServer = async (port: number, host: string = '127.0.0.1') => 
       for (const job of jobManager.listJobs()) {
         const isMatch =
           job.repoName?.toLowerCase() === lower ||
-          (job.repoUrl && path.basename(job.repoUrl).replace('.git', '').toLowerCase() === lower) ||
+          (job.repoUrl && repoNameFromUrl(job.repoUrl) === lower) ||
           (job.repoPath && path.basename(job.repoPath).toLowerCase() === lower);
 
         if (isMatch && ['queued', 'cloning', 'analyzing'].includes(job.status)) {
