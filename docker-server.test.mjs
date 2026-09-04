@@ -20,9 +20,9 @@ function getFreePort() {
   });
 }
 
-function rawGet(port, path) {
+function rawGet(port, path, method = 'GET') {
   return new Promise((resolve, reject) => {
-    const req = http.request({ host: '127.0.0.1', port, path }, (res) => {
+    const req = http.request({ host: '127.0.0.1', port, path, method }, (res) => {
       let body = '';
       res.setEncoding('utf8');
       res.on('data', (chunk) => {
@@ -71,8 +71,27 @@ before(async () => {
 });
 
 after(async () => {
-  child?.kill();
-  if (tmpDir) await rm(tmpDir, { recursive: true, force: true });
+  if (child && !child.killed) {
+    await new Promise((resolve) => {
+      child.once('exit', resolve);
+      child.kill();
+      setTimeout(resolve, 2000);
+    });
+  }
+  if (tmpDir) {
+    for (let i = 0; i < 8; i++) {
+      try {
+        await rm(tmpDir, { recursive: true, force: true });
+        break;
+      } catch (err) {
+        if (err && err.code === 'EBUSY' && i < 7) {
+          await new Promise((r) => setTimeout(r, 150));
+          continue;
+        }
+        throw err;
+      }
+    }
+  }
 });
 
 it('serves a valid asset with immutable cache header', async () => {
@@ -107,6 +126,18 @@ it('rejects percent-encoded path traversal with 400', async () => {
   // does its job after decodeURIComponent.
   const res = await rawGet(serverPort, '/%2e%2e%2f%2e%2e%2fetc%2fpasswd');
   assert.equal(res.status, 400);
+});
+
+it('rejects POST with 405', async () => {
+  const res = await rawGet(serverPort, '/', 'POST');
+  assert.equal(res.status, 405);
+  assert.match(res.headers.allow, /GET/);
+});
+
+it('answers HEAD without a body', async () => {
+  const res = await rawGet(serverPort, '/assets/app.abc123.js', 'HEAD');
+  assert.equal(res.status, 200);
+  assert.equal(res.body, '');
 });
 
 it('rejects malformed percent-encoding with 400', async () => {

@@ -39,6 +39,12 @@ const contentTypes = {
 // the request handler's reassignment paths in vanilla JS. The inline-at-sink
 // shape below is the documented analyzer-friendly idiom.
 const server = createServer(async (req, res) => {
+  if (req.method && req.method !== 'GET' && req.method !== 'HEAD') {
+    res.writeHead(405, { Allow: 'GET, HEAD' });
+    res.end('Method not allowed');
+    return;
+  }
+
   const urlPath = req.url?.split('?')[0] || '/';
 
   let decoded;
@@ -98,14 +104,21 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    // Windows `path.resolve` uses `\`, so a POSIX-only `/assets/` check
+    // would miss hashed Vite files and skip the immutable cache header.
+    const isHashedAsset = /[/\\]assets[/\\]/.test(finalPath);
     res.writeHead(200, {
-      'Cache-Control': finalPath.includes('/assets/')
+      'Cache-Control': isHashedAsset
         ? 'public, max-age=31536000, immutable'
         : 'no-cache',
       'Content-Type': contentTypes[extname(finalPath)] || 'application/octet-stream',
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'require-corp',
     });
+    if (req.method === 'HEAD') {
+      res.end();
+      return;
+    }
     const stream = createReadStream(finalPath);
     stream.on('error', () => res.destroy());
     stream.pipe(res);
