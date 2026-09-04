@@ -350,13 +350,17 @@ export const streamAllCSVsToDisk = async (
         break;
       case 'Community': {
         const keywords = node.properties.keywords || [];
-        const keywordsStr = `[${keywords.map((k: string) => `'${k.replace(/\\/g, '\\\\').replace(/'/g, "''").replace(/,/g, '\\,')}'`).join(',')}]`;
+        // LadybugDB array literal inside a quoted CSV field: escapeCSVField wraps in "..."
+        // and the array uses single-quoted elements. The wrapper is what protects the
+        // commas *separating* elements from DELIM=',' — escaping them inside the element
+        // text does not, and corrupts the keyword itself.
+        const keywordsStr = `[${keywords.map((k: string) => `'${k.replace(/\\/g, '\\\\').replace(/'/g, "''")}'`).join(',')}]`;
         await communityWriter.addRow(
           [
             escapeCSVField(node.id),
             escapeCSVField(node.properties.name || ''),
             escapeCSVField(node.properties.heuristicLabel || ''),
-            keywordsStr,
+            escapeCSVField(keywordsStr),
             escapeCSVField(node.properties.description || ''),
             escapeCSVField(node.properties.enrichedBy || 'heuristic'),
             escapeCSVNumber(node.properties.cohesion, 0),
