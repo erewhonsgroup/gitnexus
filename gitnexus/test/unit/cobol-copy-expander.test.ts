@@ -2,7 +2,10 @@
  * Unit Tests: COBOL Copy Expander — pseudotext REPLACING support
  */
 import { describe, it, expect } from 'vitest';
-import { parseReplacingClause } from '../../src/core/ingestion/cobol/cobol-copy-expander.js';
+import {
+  parseReplacingClause,
+  expandCopies,
+} from '../../src/core/ingestion/cobol/cobol-copy-expander.js';
 
 describe('parseReplacingClause', () => {
   // Existing quoted-string behavior preserved
@@ -65,5 +68,57 @@ describe('parseReplacingClause', () => {
   it('returns empty array for empty input', () => {
     expect(parseReplacingClause('')).toEqual([]);
     expect(parseReplacingClause('   ')).toEqual([]);
+  });
+});
+
+describe('fixed-format continuation lines', () => {
+  const expand = (lines: string[]) =>
+    expandCopies(
+      lines.join('\n'),
+      'src/prog.cbl',
+      (name) => `copybooks/${name}.cpy`,
+      () => '01 FILLER PIC X.',
+    );
+
+  it('merges a continuation into the previous real line', () => {
+    const result = expand([
+      '       COPY MYB',
+      '      -    OOK REPLACING ==A== BY ==B==.',
+    ]);
+    expect(result.copyResolutions).toHaveLength(1);
+    expect(result.copyResolutions[0].copyTarget).toBe('MYBOOK');
+    expect(result.copyResolutions[0].replacing).toEqual([
+      { type: 'EXACT', from: 'A', to: 'B', isPseudotext: true },
+    ]);
+  });
+
+  it('merges consecutive continuation lines into the same logical line', () => {
+    // Previously the second continuation appended to the empty placeholder
+    // pushed by the first one, landing on a *separate* logical line.
+    // parseCopyStatements joins separate logical lines with a space, so a word
+    // split across the second continuation came back as 'MYBO OK'.
+    const result = expand([
+      '       COPY MYBO',
+      '      -    O',
+      '      -    K REPLACING ==A== BY ==B==.',
+    ]);
+    expect(result.copyResolutions).toHaveLength(1);
+    expect(result.copyResolutions[0].copyTarget).toBe('MYBOOK');
+    expect(result.copyResolutions[0].replacing).toEqual([
+      { type: 'EXACT', from: 'A', to: 'B', isPseudotext: true },
+    ]);
+  });
+
+  it('merges a continuation that follows a comment line', () => {
+    const result = expand([
+      '       COPY MYB',
+      '      * a comment between a line and its continuation',
+      '      -    OOK REPLACING ==A== BY ==B==.',
+    ]);
+    expect(result.copyResolutions).toHaveLength(1);
+    expect(result.copyResolutions[0].copyTarget).toBe('MYBOOK');
+    expect(result.copyResolutions[0].replacing).toEqual([
+      { type: 'EXACT', from: 'A', to: 'B', isPseudotext: true },
+    ]);
   });
 });
