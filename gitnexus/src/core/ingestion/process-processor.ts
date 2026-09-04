@@ -408,10 +408,13 @@ const deduplicateTraces = (traces: string[][]): string[][] => {
   const unique: string[][] = [];
 
   for (const trace of sorted) {
-    // Check if this trace is a subset of any already-added trace
-    const traceKey = trace.join('->');
+    // Check if this trace is a contiguous subsequence of any already-added trace.
+    // Node ids are free-form strings, so the comparison must be anchored on the
+    // '->' separator: without the sentinels, a trace ending in `...:save` looks
+    // like a substring of one ending in `...:saveUser` and is wrongly dropped.
+    const traceKey = `->${trace.join('->')}->`;
     const isSubset = unique.some((existing) => {
-      const existingKey = existing.join('->');
+      const existingKey = `->${existing.join('->')}->`;
       return existingKey.includes(traceKey);
     });
 
