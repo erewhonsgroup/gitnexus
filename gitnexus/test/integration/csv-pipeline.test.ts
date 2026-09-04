@@ -11,6 +11,41 @@ import { createTempDir, type TestDBHandle } from '../helpers/test-db.js';
 import { buildTestGraph } from '../helpers/test-graph.js';
 import { streamAllCSVsToDisk } from '../../src/core/lbug/csv-generator.js';
 
+/**
+ * Split one CSV record the way the COPY reader does (DELIM=',' QUOTE='"' ESCAPE='"'):
+ * commas inside a quoted field are data, "" inside a quoted field is a literal quote.
+ * Returns the unquoted field values.
+ */
+function splitCSVRow(row: string): string[] {
+  const fields: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < row.length; i++) {
+    const c = row[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (row[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cur += c;
+      }
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ',') {
+      fields.push(cur);
+      cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  fields.push(cur);
+  return fields;
+}
+
 let tmpHandle: TestDBHandle;
 let csvDir: string;
 let repoDir: string;
@@ -158,8 +193,43 @@ describe('streamAllCSVsToDisk', () => {
     expect(commCsv!.rows).toBe(1);
 
     const content = await fs.readFile(commCsv!.csvPath, 'utf-8');
-    // Keywords with commas should be escaped with \,
-    expect(content).toContain('pass\\,word');
+    // The Community table declares 8 columns. The keywords array literal must be wrapped
+    // in a quoted CSV field, otherwise the commas *separating* its elements are read as
+    // DELIM=',' and every following column (description, enrichedBy, cohesion,
+    // symbolCount) shifts one position to the left.
+    const fields = splitCSVRow(content.trim().split('\n')[1]);
+    expect(fields).toHaveLength(8);
+    expect(fields[3]).toBe("['auth','login','pass,word']");
+    expect(fields[4]).toBe('Auth module');
+    expect(fields[5]).toBe('heuristic');
+    expect(fields[6]).toBe('0.85');
+    expect(fields[7]).toBe('5');
+  });
+
+  it('keeps community columns aligned for a single keyword (no regression)', async () => {
+    const graph = buildTestGraph([
+      {
+        id: 'comm:solo',
+        label: 'Community' as any,
+        name: 'Solo',
+        filePath: '',
+        extra: {
+          heuristicLabel: 'Single',
+          keywords: ['only'],
+          description: 'One keyword',
+          enrichedBy: 'heuristic',
+          cohesion: 0.5,
+          symbolCount: 1,
+        },
+      },
+    ]);
+
+    const result = await streamAllCSVsToDisk(graph, repoDir, csvDir);
+    const content = await fs.readFile(result.nodeFiles.get('Community')!.csvPath, 'utf-8');
+    const fields = splitCSVRow(content.trim().split('\n')[1]);
+    expect(fields).toHaveLength(8);
+    expect(fields[3]).toBe("['only']");
+    expect(fields[7]).toBe('1');
   });
 
   it('handles process nodes', async () => {
