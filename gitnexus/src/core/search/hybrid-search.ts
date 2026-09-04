@@ -71,6 +71,12 @@ export const mergeWithRRF = (
 
     const existing = merged.get(r.filePath);
     if (existing) {
+      // Semantic search returns one row per symbol, so the same file can appear
+      // multiple times. RRF contributes at most once per document per ranking
+      // list - counting every hit inflates files with many mediocre matches and
+      // overwrites the best-ranked symbol metadata with the worst one.
+      if (existing.sources.includes('semantic')) continue;
+
       // Found by both methods - add scores
       existing.score += rrfScore;
       existing.sources.push('semantic');
