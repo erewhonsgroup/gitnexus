@@ -1640,7 +1640,15 @@ export const createServer = async (port: number, host: string = '127.0.0.1') => 
         return;
       }
 
-      const job = embedJobManager.createJob({ repoPath: entry.storagePath });
+      // createJob throws when a job for a *different* repo is already active.
+      // The lock above is already held at that point, so it must be released
+      // before the error propagates to the outer catch — otherwise this repo
+      // stays locked for the remaining lifetime of the server process.
+      const job = embedJobManager.createJobHoldingLock(
+        { repoPath: entry.storagePath },
+        () => releaseRepoLock(repoLockPath),
+      );
+
       embedJobManager.updateJob(job.id, {
         repoName: entry.name,
         status: 'analyzing' as any,

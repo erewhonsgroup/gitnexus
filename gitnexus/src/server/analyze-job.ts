@@ -83,6 +83,23 @@ export class JobManager {
     return job;
   }
 
+  /**
+   * Create a job after a repo lock is already held. If createJob rejects
+   * (another repo already has an active job), invoke `release` so the
+   * caller does not leak the lock for the remaining process lifetime.
+   */
+  createJobHoldingLock<T>(
+    params: { repoUrl?: string; repoPath?: string },
+    release: () => T,
+  ): AnalyzeJob {
+    try {
+      return this.createJob(params);
+    } catch (err) {
+      release();
+      throw err;
+    }
+  }
+
   getJob(id: string): AnalyzeJob | undefined {
     return this.jobs.get(id);
   }
