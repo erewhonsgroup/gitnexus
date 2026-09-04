@@ -75,7 +75,16 @@ export function resolveCSharpImportInternal(
       for (let i = 0; i < normalizedFileList.length; i++) {
         const normalized = normalizedFileList[i];
         if (!normalized.endsWith('.cs')) continue;
-        const prefixIdx = normalized.indexOf(dirTrail);
+        // The directory must occupy whole path segments: match at the start of
+        // the path or immediately after a '/'. A bare indexOf() also matches
+        // mid-segment, so namespace "Models" would claim "src/OtherModels/".
+        let prefixIdx = -1;
+        if (normalized.startsWith(dirTrail)) {
+          prefixIdx = 0;
+        } else {
+          const sepIdx = normalized.indexOf('/' + dirTrail);
+          if (sepIdx >= 0) prefixIdx = sepIdx + 1;
+        }
         if (prefixIdx < 0) continue;
         const afterDir = normalized.substring(prefixIdx + dirTrail.length);
         if (!afterDir.includes('/')) {
