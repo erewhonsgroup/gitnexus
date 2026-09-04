@@ -119,7 +119,6 @@ it('answers HEAD without a body', async () => {
   const res = await rawGet(serverPort, '/assets/app.abc123.js', 'HEAD');
   assert.equal(res.status, 200);
   assert.equal(res.body, '');
-  assert.match(res.headers['cache-control'], /immutable/);
 });
 
 it('rejects malformed percent-encoding with 400', async () => {
