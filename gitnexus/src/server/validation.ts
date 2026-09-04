@@ -81,6 +81,11 @@ export function assertSafePath(rawPath: string, root: string): string {
   if (rawPath.includes('\0')) {
     throw new BadRequestError('Path must not contain null bytes');
   }
+  // `path.resolve(root, 'C:\\Windows')` on Windows discards `root` and
+  // returns the drive path. Treat an absolute user path as traversal.
+  if (path.isAbsolute(rawPath)) {
+    throw new ForbiddenError('Path traversal denied');
+  }
   const resolvedRoot = path.resolve(root);
   const fullPath = path.resolve(resolvedRoot, rawPath);
   if (fullPath !== resolvedRoot && !fullPath.startsWith(resolvedRoot + path.sep)) {
