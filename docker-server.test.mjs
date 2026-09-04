@@ -56,6 +56,7 @@ before(async () => {
   await mkdir(assetsDir, { recursive: true });
   await writeFile(join(distDir, 'index.html'), '<html><body>spa</body></html>');
   await writeFile(join(assetsDir, 'app.abc123.js'), 'console.log("app")');
+  await writeFile(join(assetsDir, 'mod.wasm'), Buffer.from([0x00, 0x61, 0x73, 0x6d]));
 
   serverPort = await getFreePort();
   child = spawn(process.execPath, [serverScript], {
@@ -73,6 +74,12 @@ before(async () => {
 after(async () => {
   child?.kill();
   if (tmpDir) await rm(tmpDir, { recursive: true, force: true });
+});
+
+it('serves wasm with application/wasm', async () => {
+  const res = await rawGet(serverPort, '/assets/mod.wasm');
+  assert.equal(res.status, 200);
+  assert.match(res.headers['content-type'], /application\/wasm/);
 });
 
 it('serves a valid asset with immutable cache header', async () => {
