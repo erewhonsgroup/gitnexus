@@ -522,4 +522,75 @@ describe('processProcesses', () => {
     expect(result.processes.length).toBeLessThanOrEqual(3);
     expect(result.stats.totalProcesses).toBeLessThanOrEqual(3);
   });
+
+  it('does not drop a trace whose terminal name is a prefix of another trace terminal', async () => {
+    const graph = createKnowledgeGraph();
+
+    const mk = (name: string) => ({
+      id: `func:${name}`,
+      label: 'Function',
+      properties: {
+        name,
+        filePath: `src/${name}.ts`,
+        startLine: 1,
+        endLine: 5,
+        isExported: true,
+      },
+    });
+
+    // main -> mid -> save                  (dropped pre-fix: its joined trace
+    // main -> mid -> saveUser -> finish     is a mid-string substring of this one)
+    for (const n of ['main', 'mid', 'save', 'saveUser', 'finish']) {
+      graph.addNode(mk(n));
+    }
+    graph.addRelationship({
+      id: 'call:1',
+      sourceId: 'func:main',
+      targetId: 'func:mid',
+      type: 'CALLS',
+      confidence: 0.9,
+      reason: '',
+    });
+    graph.addRelationship({
+      id: 'call:2',
+      sourceId: 'func:mid',
+      targetId: 'func:save',
+      type: 'CALLS',
+      confidence: 0.9,
+      reason: '',
+    });
+    graph.addRelationship({
+      id: 'call:3',
+      sourceId: 'func:mid',
+      targetId: 'func:saveUser',
+      type: 'CALLS',
+      confidence: 0.9,
+      reason: '',
+    });
+
+    graph.addRelationship({
+      id: 'call:4',
+      sourceId: 'func:saveUser',
+      targetId: 'func:finish',
+      type: 'CALLS',
+      confidence: 0.9,
+      reason: '',
+    });
+
+    const memberships: CommunityMembership[] = [
+      'main',
+      'mid',
+      'save',
+      'saveUser',
+      'finish',
+    ].map((n) => ({
+      nodeId: `func:${n}`,
+      communityId: 'community:0',
+    }));
+
+    const result = await processProcesses(graph, memberships);
+
+    const terminals = result.processes.map((p) => p.terminalId).sort();
+    expect(terminals).toEqual(['func:finish', 'func:save']);
+  });
 });
